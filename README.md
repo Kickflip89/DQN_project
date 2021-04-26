@@ -16,3 +16,7 @@ To use the modified reward system in DQN or DDQN, uncomment the line:
 #reward -= 10
 ```
 in the q_iteration method of the LearningSystem class.
+
+## Data bug for iterations
+in ./data, the lists representing the average number of iterations for dqn and ddqn were not reset during training due to a bug.  Thankfully, since they were
+calculated at regular intervals, the actual average iterations can be calculated by subtracting the current element from the previous element.
