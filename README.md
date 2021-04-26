@@ -19,4 +19,15 @@ in the q_iteration method of the LearningSystem class.
 
 ## Data bug for iterations
 in ./data, the lists representing the average number of iterations for dqn and ddqn were not reset during training due to a bug.  Thankfully, since they were
-calculated at regular intervals, the actual average iterations can be calculated by subtracting the current element from the previous element.
+calculated at regular intervals, the actual average iterations can be calculated by subtracting the current element from the previous element. The true values can be found with
+
+```python
+#its is of form {model_name:data} and has the bugged data for average iterations
+for model, data in its.items():
+    new_dat = [data[0]]
+    for i in range(1,len(data)):
+        new_dat.append(data[i] - data[i-1])
+        total += data[i]
+    print(new_dat)
+    its[model] = new_dat
+```
