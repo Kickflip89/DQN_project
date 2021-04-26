@@ -28,6 +28,5 @@ for model, data in its.items():
     for i in range(1,len(data)):
         new_dat.append(data[i] - data[i-1])
         total += data[i]
-    print(new_dat)
     its[model] = new_dat
 ```
