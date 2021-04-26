@@ -25,9 +25,9 @@ class SLearningNetwork():
         self.num_actions = self.env.action_space.n
         self.render = lambda : plt.imshow(env.render(mode='rgb_array'))
         self.reward_pol = DQN(height, width, num_frames, self.num_actions, a_r).to(self.device).train()
-        self.reward_tar = DQN(height, width, num_frames, self.num_actions).eval()
+        self.reward_tar = DQN(height, width, num_frames, self.num_actions).to(self.device).eval()
         self.punish_pol = DQN(height,width, num_frames, self.num_actions, a_p).to(self.device).train()
-        self.punish_tar = DQN(height, width, num_frames, self.num_actions).eval()
+        self.punish_tar = DQN(height, width, num_frames, self.num_actions).to(self.device).eval()
         self.loss = nn.SmoothL1Loss()
         self.opt_r = torch.optim.RMSprop(self.reward_pol.parameters(), lr=.00025, alpha=.95, eps=0.01)
         self.opt_p = torch.optim.RMSprop(self.punish_pol.parameters(), lr=.00025, alpha=.95, eps=.01)
@@ -60,22 +60,22 @@ class SLearningNetwork():
         states, actions, next_states, rewards, punishments, non_terms = list(zip(*sample))
         states = torch.cat(states).to(dev)
         actions = torch.tensor(actions).long().to(dev)
-        next_states = torch.cat(next_states)
-        rewards = torch.tensor(rewards).long()
-        punishments = torch.tensor(punishments).long()
-        non_terms = torch.tensor(non_terms)
-        next_mask = torch.ones((actions.size(0), self.num_actions))
+        next_states = torch.cat(next_states).to(dev)
+        rewards = torch.tensor(rewards).long().to(dev)
+        punishments = torch.tensor(punishments).long().to(dev)
+        non_terms = torch.tensor(non_terms).to(dev)
+        next_mask = torch.ones((actions.size(0), self.num_actions)).to(dev)
         curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
         next_Qr_vals = rew_t(next_states, next_mask)
         next_Qr_vals = next_Qr_vals.max(1)[0] * non_terms
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
 
-        expected_Qr_vals = rew_p(states.to(dev), curr_mask.to(dev))
+        expected_Qr_vals = rew_p(states, curr_mask)
         expected_Qr_vals = expected_Qr_vals.gather(-1, actions.unsqueeze(1))
 
         self.opt_r.zero_grad()
-        r_loss = self.loss(expected_Qr_vals.squeeze(1), next_Qr_vals.to(dev))
+        r_loss = self.loss(expected_Qr_vals.squeeze(1), next_Qr_vals)
         r_loss.backward()
         for param in rew_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -89,7 +89,7 @@ class SLearningNetwork():
         expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1))
         
         self.opt_p.zero_grad()
-        p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals.to(dev))
+        p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals)
         p_loss.backward()
         for param in pun_p.parameters():
             param.grad.data.clamp_(-1, 1)
