@@ -1,12 +1,9 @@
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
-import torch.nn.functional as F
-from torch import nn
-import torch
-from dqn import DQN, ReplayBuffer
 
-MODEL_PATH = './models/checkpoint_sqn.pt'
+REWARD_PATH = './models/checkpoint_sqn_reward.pt'
+PUNISH_PATH = './models/checkpoint_sqn_punish.pt'
 
 def init_weights(m):
     if type(m) == nn.Linear:
@@ -33,9 +30,11 @@ class SLearningNetwork():
         self.punish_tar = DQN(height, width, num_frames, self.num_actions).eval()
         self.loss = nn.SmoothL1Loss()
         self.opt_r = torch.optim.RMSprop(self.reward_pol.parameters(), lr=.00025, alpha=.95, eps=0.01)
-        self.opt_p = torch.optim.RMSprop(self.punish_pol.paramters(), lr=.00025, alpha=.95, eps=.01)
-        self.policy.apply(init_weights)
-        self.target.apply(init_weights)
+        self.opt_p = torch.optim.RMSprop(self.punish_pol.parameters(), lr=.00025, alpha=.95, eps=.01)
+        self.reward_pol.apply(init_weights)
+        self.reward_tar.apply(init_weights)
+        self.punish_pol.apply(init_weights)
+        self.punish_tar.apply(init_weights)
 
 
     def get_start_state(self):
@@ -52,30 +51,31 @@ class SLearningNetwork():
         return torch.tensor(grayscale).unsqueeze(0)
 
     def fit_buffer(self, sample):
-        rew_p = self.reward_p.train()
-        rew_t = self.reward_t
-        pun_p = self.pun_p.train()
-        pun_t = self.pun_t
+        rew_p = self.reward_pol.train()
+        rew_t = self.reward_tar.eval()
+        pun_p = self.punish_pol.train()
+        pun_t = self.punish_tar.eval()
         dev = self.device
 
-        states, actions, next_states, rewards, non_terms = list(zip(*sample))
-        states = torch.cat(states)
+        states, actions, next_states, rewards, punishments, non_terms = list(zip(*sample))
+        states = torch.cat(states).to(dev)
         actions = torch.tensor(actions).long().to(dev)
         next_states = torch.cat(next_states)
         rewards = torch.tensor(rewards).long()
-        non_terms = torch.tensor(non_terms).to(dev)
+        punishments = torch.tensor(punishments).long()
+        non_terms = torch.tensor(non_terms)
         next_mask = torch.ones((actions.size(0), self.num_actions))
-        curr_mask = F.one_hot(actions, self.num_actions)
+        curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
         next_Qr_vals = rew_t(next_states, next_mask)
         next_Qr_vals = next_Qr_vals.max(1)[0] * non_terms
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
 
         expected_Qr_vals = rew_p(states.to(dev), curr_mask.to(dev))
-        expected_Qr_vals = expected_Q_vals.gather(-1, actions.unsqueeze(1))
+        expected_Qr_vals = expected_Qr_vals.gather(-1, actions.unsqueeze(1))
 
         self.opt_r.zero_grad()
-        r_loss = self.loss(expected_Qr_vals.squeeze(1), next_Qr_vals)
+        r_loss = self.loss(expected_Qr_vals.squeeze(1), next_Qr_vals.to(dev))
         r_loss.backward()
         for param in rew_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -86,10 +86,10 @@ class SLearningNetwork():
         next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
         
         expected_Qp_vals = pun_p(states, curr_mask)
-        expected_Qp_vals = expected_Q_vals.gather(-1, actions.unsqueeze(1))
+        expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1))
         
         self.opt_p.zero_grad()
-        p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals)
+        p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals.to(dev))
         p_loss.backward()
         for param in pun_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -98,11 +98,11 @@ class SLearningNetwork():
         return r_loss.item(), p_loss.item()
 
     def get_epsilon_for_iteration(self, iteration):
-        return max(.01, 1-(iteration*.9/500000))
+        return max(.01, 1-(iteration*.9/300000))
     
     def choose_best_action(self, frames):
-        pun = self.pun_p
-        rew = self.rew_p
+        pun = self.punish_pol
+        rew = self.reward_pol
         dev = self.device
         frames = frames.unsqueeze(0).to(dev)
         mask = torch.ones(1,self.num_actions).to(dev).squeeze(0)
@@ -110,7 +110,7 @@ class SLearningNetwork():
         rew.eval()
         r_Q = rew(frames, mask)
         p_Q = pun(frames, mask)
-        actions = r_Q + p_Q
+        actions = (r_Q + p_Q).squeeze(0)
         return int(actions.max(0)[1])
 
     def q_iteration(self, frames, iteration):
@@ -157,7 +157,8 @@ class SLearningNetwork():
                new_frames.unsqueeze(0), reward, punishment, non_term)
         self.memory.push(mem)
 
-        loss = None
+        r_loss = None
+        p_loss = None
         grad = None
         # Sample and fit
         if iteration > 64:
@@ -187,7 +188,7 @@ class SLearningNetwork():
                 iteration += 1
                 e_reward += reward
                 e_its += 1
-                if loss is not None:
+                if r_loss is not None:
                     running_loss += (r_loss + p_loss)/2
                     running_count += 1
             running_score += e_reward
@@ -205,14 +206,20 @@ class SLearningNetwork():
                 running_loss = 0
                 running_count = 0
                 running_score = 0
-            if e%updates == 0:
-                torch.save(self.policy.state_dict(), MODEL_PATH)
-                self.load_target(MODEL_PATH)
+            if e%updates == 0 and e > 0:
+                torch.save(self.reward_pol.state_dict(), REWARD_PATH)
+                self.load_reward_t(REWARD_PATH)
+                torch.save(self.punish_pol.state_dict(), PUNISH_PATH)
+                self.load_punish_t(PUNISH_PATH)
         self.plot()
 
-    def load_target(self, path):
-        self.target.load_state_dict(torch.load(path))
-        self.target.eval()
+    def load_reward_t(self, path):
+        self.reward_tar.load_state_dict(torch.load(path))
+        self.reward_tar.eval()
+        
+    def load_punish_t(self, path):
+        self.punish_tar.load_state_dict(torch.load(path))
+        self.punish_tar.eval()
 
     def play(self):
         #TODO, update this method
