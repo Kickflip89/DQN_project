@@ -2,6 +2,17 @@ import torch.nn.functional as F
 from torch import nn
 import random
 
+class GradMultiply(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, scale):
+        ctx.scale = scale
+        res = x.new(x)
+        return res
+
+    @staticmethod
+    def backward(ctx, grad):
+        return grad * ctx.scale, None
+
 class ReplayBuffer(object):
     """
         ReplayBuffer from pytorch documentation
@@ -26,9 +37,10 @@ class ReplayBuffer(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, height, width, frames, num_actions):
+    def __init__(self, height, width, frames, num_actions, alpha=1):
         super(DQN, self).__init__()
         self.num_actions = num_actions
+        self.alpha = alpha
         new_h = self.get_output_dim(height)
         new_w = self.get_output_dim(width)
         flat_dim = 64*new_h*new_w
@@ -53,4 +65,6 @@ class DQN(nn.Module):
         X = self.flat(X)
         X = self.fc(X)
         X = self.out(X)
+        if alpha!= 1:
+            X = GradMultiply(x, self.alpha)
         return X*actions
