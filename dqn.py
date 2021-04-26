@@ -4,6 +4,9 @@ import torch
 import random
 
 class GradMultiply(torch.autograd.Function):
+    """
+        Used for scaling the gradient in the split Q-learning implementation
+    """
     @staticmethod
     def forward(ctx, x, scale):
         ctx.scale = scale
@@ -37,7 +40,15 @@ class ReplayBuffer(object):
         return len(self.memory)
 
 class DQN(nn.Module):
+    """
+        CNN architecture for all three models
 
+        :param height: height of image
+        :param width: width of image
+        :param frames: number of frames per state
+        :param num_actions: action space dimension
+        :param alpha: for use with split-qlearning to scale the gradient
+    """
     def __init__(self, height, width, frames, num_actions, alpha=1):
         super(DQN, self).__init__()
         self.num_actions = num_actions

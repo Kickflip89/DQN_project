@@ -13,6 +13,14 @@ def init_weights(m):
         nn.init.xavier_uniform_(m.weight)
 
 class DLearningNetwork():
+    """
+        Double Deep Q-learning implementation
+
+        :param gamma: reward discount
+        :param batch_size: replay buffer batch sizes
+        :param env: gym environment
+        :param num_frames: number of frames per state (and number per action)
+    """
     def __init__(self, gamma=.95, batch_size=64, env='MsPacmanDeterministic-v4', num_frames=4):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
@@ -84,7 +92,7 @@ class DLearningNetwork():
 
     def get_epsilon_for_iteration(self, iteration):
         return max(.01, 1-(iteration*.9/300000))
-    
+
     def choose_best_action(self, frames):
         model = self.policy
         dev = self.device
@@ -114,9 +122,10 @@ class DLearningNetwork():
                 new_frame, reward, is_done, lives = self.env.step(action)
                 lives = lives['ale.lives']
                 new_frame = self.preprocess(new_frame)
+                total_reward += reward
                 if lives < self.lives:
                     self.lives = lives
-                total_reward += reward
+                    #reward -= 10
             else:
                 reward = 0
             new_frames.append(new_frame)

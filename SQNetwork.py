@@ -10,7 +10,20 @@ def init_weights(m):
         nn.init.xavier_uniform_(m.weight)
 
 class SLearningNetwork():
-    def __init__(self, gamma=.95, batch_size=64, env='MsPacmanDeterministic-v4', num_frames=4,
+    """
+        Novel implementation of Lin et. al's split Q-learning for Deep RL
+
+        :param gamma: reward discount
+        :param batch_size: replay buffer batch sizes
+        :param env: gym environment
+        :param num_frames: number of frames per state (and number per action)
+        :param lam_r: instantaneous reward scaling [1,100] typically
+        :param lam_p: instantaneous punishment scaling [1,100]
+        :param a_r: gradient scaling for rewards [.1,1] typically
+        :param a_l: gradient scaling for punishments [.1,1]
+    """
+    def __init__(self, gamma=.95, batch_size=64,
+                env='MsPacmanDeterministic-v4', num_frames=4,
                 lam_r=1, lam_p=1, a_r=1, a_p=1):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
@@ -47,7 +60,7 @@ class SLearningNetwork():
 
     def preprocess(self, img):
         ds = img[::2,::2]
-        grayscale = np.mean(ds, axis=-1).astype(np.uint8)
+        grayscale = np.mean(ds, axis=-1).astype(np.uint8)#saves memory
         return torch.tensor(grayscale).unsqueeze(0)
 
     def fit_buffer(self, sample):
@@ -67,6 +80,7 @@ class SLearningNetwork():
         next_mask = torch.ones((actions.size(0), self.num_actions)).to(dev)
         curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
+        #process rewards
         next_Qr_vals = rew_t(next_states, next_mask)
         next_Qr_vals = next_Qr_vals.max(1)[0] * non_terms
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
@@ -80,14 +94,15 @@ class SLearningNetwork():
         for param in rew_p.parameters():
             param.grad.data.clamp_(-1, 1)
         self.opt_r.step()
-        
+
+        #process punishments
         next_Qp_vals = pun_t(next_states, next_mask)
         next_Qp_vals = next_Qp_vals.max(1)[0] * non_terms
         next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
-        
+
         expected_Qp_vals = pun_p(states, curr_mask)
         expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1))
-        
+
         self.opt_p.zero_grad()
         p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals)
         p_loss.backward()
@@ -98,8 +113,9 @@ class SLearningNetwork():
         return r_loss.item(), p_loss.item()
 
     def get_epsilon_for_iteration(self, iteration):
+        #TODO provide scaling as parameter
         return max(.01, 1-(iteration*.9/300000))
-    
+
     def choose_best_action(self, frames):
         pun = self.punish_pol
         rew = self.reward_pol
@@ -123,12 +139,11 @@ class SLearningNetwork():
             action = env.action_space.sample()
         else:
             action = self.choose_best_action(frames)
-
-
         is_done = False
         new_frames = []
         total_score = 0
-        # Play one game iteration (3 frames):
+
+        # Play one game iteration (num_frames):
         for i in range(self.num_frames):
             if not is_done:
                 new_frame, reward, is_done, lives = self.env.step(action)
@@ -216,7 +231,7 @@ class SLearningNetwork():
     def load_reward_t(self, path):
         self.reward_tar.load_state_dict(torch.load(path))
         self.reward_tar.eval()
-        
+
     def load_punish_t(self, path):
         self.punish_tar.load_state_dict(torch.load(path))
         self.punish_tar.eval()
@@ -227,6 +242,7 @@ class SLearningNetwork():
         self.render(frame)
 
     def plot(self):
+        #TODO cleanup this method
         fig, ax = plt.subplots()
         plt.title(f'Score During Training - {self.updates} Epoch Updates')
         ax.set_xlabel('100 Epoch')
