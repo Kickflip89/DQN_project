@@ -3,7 +3,7 @@ Deep Reinforcement Learning Project
 
 The repository is a little sloppy and not well documented at this point
 
-##Model Initialization
+## Model Initialization
 Use one of the following to intialize a network (no args right now, have to modify code)
 ```python
 from DQNetwork import LearningSystem #DQN implementation
