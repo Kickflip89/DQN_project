@@ -34,6 +34,7 @@ class LearningNetwork():
 
 
     def get_start_state(self):
+        self.lives = 3
         frame = self.preprocess(self.env.reset())
         frames = []
         for i in range(self.num_frames):
@@ -78,7 +79,7 @@ class LearningNetwork():
         return loss.item()
 
     def get_epsilon_for_iteration(self, iteration):
-        return max(.01, 1-(iteration*.9/100000))
+        return max(.01, 1-(iteration*.9/300000))
 
     def choose_best_action(self, frames):
         model = self.policy
@@ -106,8 +107,11 @@ class LearningNetwork():
         # Play one game iteration (3 frames):
         for i in range(self.num_frames):
             if not is_done:
-                new_frame, reward, is_done, _ = self.env.step(action)
+                new_frame, reward, is_done, lives = self.env.step(action)
+                lives = lives['ale.lives']
                 new_frame = self.preprocess(new_frame)
+                if lives < self.lives:
+                    self.lives = lives
                 total_reward += reward
             else:
                 reward = 0
@@ -136,30 +140,37 @@ class LearningNetwork():
         self.eps_history = []
         self.loss_hist = []
         self.updates = updates
+        self.its_hist = []
         iteration = start_iter
         running_loss = 0
         running_count = 0
         running_score = 0
+        running_its = 0
         for e in range(epochs):
             is_done = False
             e_reward = 0
+            e_its = 0
             frames = self.get_start_state()
             while not is_done:
                 is_done, reward, frames, loss = self.q_iteration(frames, iteration)
                 iteration += 1
                 e_reward += reward
+                e_its += 1
                 if loss is not None:
                     running_loss += loss
                     running_count += 1
             running_score += e_reward
+            running_its += e_its
             if e%100 == 0:
                 era_score = running_score / 100
+                era_its = running_its / 100
                 self.score_history.append(era_score)
                 eps = self.get_epsilon_for_iteration(iteration)
                 self.eps_history.append(eps)
                 self.loss_hist.append(running_loss / running_count)
+                self.its_hist.append(era_its)
                 print(f'---> Epoch {e}/{epochs}, Score: {era_score}, eps: {eps}')
-                print(f'-------->Loss: {running_loss / running_count}')
+                print(f'-------->Loss: {running_loss / running_count}, Its: {era_its}')
                 running_loss = 0
                 running_count = 0
                 running_score = 0
@@ -193,3 +204,4 @@ class LearningNetwork():
         lbls = [l.get_label() for l in lns]
         ax.legend(lns, lbls)
         plt.show()
+#network.load_model(MODEL_PATH)
