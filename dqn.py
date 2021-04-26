@@ -1,5 +1,6 @@
 import torch.nn.functional as F
 from torch import nn
+import torch
 import random
 
 class GradMultiply(torch.autograd.Function):
@@ -65,6 +66,6 @@ class DQN(nn.Module):
         X = self.flat(X)
         X = self.fc(X)
         X = self.out(X)
-        if alpha!= 1:
-            X = GradMultiply(x, self.alpha)
+        if self.alpha!= 1:
+            X = GradMultiply.apply(X, self.alpha)
         return X*actions
