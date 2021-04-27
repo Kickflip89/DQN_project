@@ -6,6 +6,7 @@ import random
 class GradMultiply(torch.autograd.Function):
     """
         Used for scaling the gradient in the split Q-learning implementation
+        originally from fairseq module under MIT license.
     """
     @staticmethod
     def forward(ctx, x, scale):
