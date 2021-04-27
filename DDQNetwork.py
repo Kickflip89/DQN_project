@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch import nn
 import torch
 from dqn import DQN, ReplayBuffer
+import random
 
 MODEL_PATH = './models/checkpoint_ddqn.pt'
 
@@ -12,7 +13,7 @@ def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.xavier_uniform_(m.weight)
 
-class DLearningNetwork():
+class DLearningNetwork:
     """
         Double Deep Q-learning implementation
 
@@ -190,7 +191,6 @@ class DLearningNetwork():
             if e%updates == 0:
                 torch.save(self.policy.state_dict(), MODEL_PATH)
                 self.load_target(MODEL_PATH)
-        self.plot()
 
     def load_target(self, path):
         self.target.load_state_dict(torch.load(path))

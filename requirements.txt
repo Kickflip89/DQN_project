@@ -1,0 +1,6 @@
+cmake
+numpy
+atari-py
+gym[atari]
+seaborn
+torch

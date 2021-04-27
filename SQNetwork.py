@@ -1,6 +1,11 @@
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
+import torch.nn.functional as F
+from torch import nn
+import torch
+from dqn import DQN, ReplayBuffer
+import random
 
 REWARD_PATH = './models/checkpoint_sqn_reward.pt'
 PUNISH_PATH = './models/checkpoint_sqn_punish.pt'
@@ -9,7 +14,7 @@ def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.xavier_uniform_(m.weight)
 
-class SLearningNetwork():
+class SLearningNetwork:
     """
         Novel implementation of Lin et. al's split Q-learning for Deep RL
 
@@ -27,7 +32,7 @@ class SLearningNetwork():
                 lam_r=1, lam_p=1, a_r=1, a_p=1):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
-        self.memory = ReplayBuffer(50000)
+        self.memory = ReplayBuffer(30000)
         self.gamma = gamma
         self.batch_size = batch_size
         self.lam_r = lam_r
@@ -114,7 +119,7 @@ class SLearningNetwork():
 
     def get_epsilon_for_iteration(self, iteration):
         #TODO provide scaling as parameter
-        return max(.01, 1-(iteration*.9/300000))
+        return max(.05, 1-(iteration*.95/500000))
 
     def choose_best_action(self, frames):
         pun = self.punish_pol
@@ -161,6 +166,7 @@ class SLearningNetwork():
                 total_score += score
             else:
                 reward = 0
+                punishment = 0
             new_frames.append(new_frame)
         new_frames = torch.cat(new_frames)
 
@@ -226,7 +232,6 @@ class SLearningNetwork():
                 self.load_reward_t(REWARD_PATH)
                 torch.save(self.punish_pol.state_dict(), PUNISH_PATH)
                 self.load_punish_t(PUNISH_PATH)
-        self.plot()
 
     def load_reward_t(self, path):
         self.reward_tar.load_state_dict(torch.load(path))
