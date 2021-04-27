@@ -19,7 +19,7 @@ class GradMultiply(torch.autograd.Function):
 
 class ReplayBuffer(object):
     """
-        ReplayBuffer from pytorch documentation
+        ReplayBuffer based on pytorch documentation
     """
     def __init__(self, capacity):
         self.capacity = capacity
@@ -69,7 +69,7 @@ class DQN(nn.Module):
         return new_dim
 
     def forward(self, X, actions):
-        X = X/255.0
+        X = X/255.0 #casts from uint8 to float for processing
         res = X
         X = F.relu(self.conv1(X))
         X = F.relu(self.conv2(X))

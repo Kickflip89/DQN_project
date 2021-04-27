@@ -244,8 +244,23 @@ class SLearningNetwork:
 
     def play(self):
         #TODO, update this method
-        frame = self.get_start_state()
-        self.render(frame)
+        state = self.get_start_state()
+        im = plt.imshow(self.env.render(mode='rgb_array'))
+        plt.ion()
+        is_done = False
+        while not is_done:
+            action = self.choose_best_action(state)
+            new_state = []
+            for i in range(self.num_frames):
+                new_frame, reward, is_done, lives = self.env.step(action)
+                if is_done:
+                    break
+                im.set_data(self.env.render(mode='rgb_array'))
+                plt.draw()
+                plt.pause(.001)
+                new_state.append(self.preprocess(new_frame))
+            state = torch.cat(new_state)
+        plt.show()
 
     def plot(self):
         #TODO cleanup this method

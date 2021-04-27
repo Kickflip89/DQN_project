@@ -22,7 +22,8 @@ class LearningNetwork:
         :param env: gym environment
         :param num_frames: number of frames per state (and number per action)
     """
-    def __init__(self, gamma, batch_size, env, num_frames):
+    def __init__(self, gamma=.95, batch_size=64,
+                env='MsPacmanDeterministic-v4', num_frames=4):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
         self.memory = ReplayBuffer(50000)
@@ -33,7 +34,6 @@ class LearningNetwork:
         self.start = self.get_start_state()
         _, height, width = self.start.size()
         self.num_actions = self.env.action_space.n
-        self.render = lambda : plt.imshow(env.render(mode='rgb_array'))
         self.policy = DQN(height, width, num_frames, self.num_actions).to(self.device)
         self.target = DQN(height,width, num_frames, self.num_actions).to(self.device)
         self.loss = nn.SmoothL1Loss()
@@ -196,9 +196,23 @@ class LearningNetwork:
 
     def play(self):
         #TODO, update this method
-        frame = self.get_start_state()
-        self.render(frame)
-
+        state = self.get_start_state()
+        im = plt.imshow(self.env.render(mode='rgb_array'))
+        plt.ion()
+        is_done = False
+        while not is_done:
+            action = self.choose_best_action(state)
+            new_state = []
+            for i in range(self.num_frames):
+                new_frame, reward, is_done, lives = self.env.step(action)
+                if is_done:
+                    break
+                im.set_data(self.env.render(mode='rgb_array'))
+                plt.draw()
+                plt.pause(.001)
+                new_state.append(self.preprocess(new_frame))
+            state = torch.cat(new_state)
+        plt.show()
 
     def plot(self):
         fig, ax = plt.subplots()
