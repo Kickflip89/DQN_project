@@ -185,6 +185,7 @@ class LearningNetwork:
                 running_loss = 0
                 running_count = 0
                 running_score = 0
+                running_its = 0
             if e%updates == 0:
                 torch.save(self.policy.state_dict(), MODEL_PATH)
                 self.load_target(MODEL_PATH)

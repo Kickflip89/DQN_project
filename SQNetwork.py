@@ -227,6 +227,7 @@ class SLearningNetwork:
                 running_loss = 0
                 running_count = 0
                 running_score = 0
+                running_its = 0
             if e%updates == 0 and e > 0:
                 torch.save(self.reward_pol.state_dict(), REWARD_PATH)
                 self.load_reward_t(REWARD_PATH)
