@@ -119,10 +119,9 @@ class LearningNetwork:
                 new_frame, reward, is_done, lives = self.env.step(action)
                 lives = lives['ale.lives']
                 new_frame = self.preprocess(new_frame)
-                total_reward += reward
                 if lives < self.lives:
                     self.lives = lives
-                    #reward -= 10
+                    #total_reward -= 10
                 total_reward += reward
             else:
                 reward = 0
@@ -134,7 +133,7 @@ class LearningNetwork:
             non_term = 0
 
         mem = (frames.unsqueeze(0), action,
-               new_frames.unsqueeze(0), reward, non_term)
+               new_frames.unsqueeze(0), total_reward, non_term)
         self.memory.push(mem)
 
         loss = None

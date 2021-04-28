@@ -156,8 +156,8 @@ class SLearningNetwork:
                 score = reward
                 #anxiety of staying alive
                 punishment -= 1
-                #excitment of staying alive
                 tot_reward += 1
+                #excitment of staying alive
                 if reward < 0:
                     punishment += reward
                 else:

@@ -127,6 +127,7 @@ class DLearningNetwork:
                 if lives < self.lives:
                     self.lives = lives
                     #reward -= 10
+                total_reward += reward
             else:
                 reward = 0
             new_frames.append(new_frame)
@@ -137,7 +138,7 @@ class DLearningNetwork:
             non_term = 0
 
         mem = (frames.unsqueeze(0), action,
-               new_frames.unsqueeze(0), reward, non_term)
+               new_frames.unsqueeze(0), total_reward, non_term)
         self.memory.push(mem)
 
         loss = None
