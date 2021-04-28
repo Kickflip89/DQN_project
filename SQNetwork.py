@@ -119,7 +119,7 @@ class SLearningNetwork:
 
     def get_epsilon_for_iteration(self, iteration):
         #TODO provide scaling as parameter
-        return max(.01, 1-(iteration*.99/300000))
+        return max(.01, 1-(iteration*.99/500000))
 
     def choose_best_action(self, frames):
         pun = self.punish_pol
@@ -147,10 +147,10 @@ class SLearningNetwork:
         is_done = False
         new_frames = []
         total_score = 0
+        tot_reward = 0
+        punishment = 0
         # Play one game iteration (num_frames):
         for i in range(self.num_frames):
-            tot_reward = 0
-            punishment = 0
             if not is_done:
                 new_frame, reward, is_done, lives = self.env.step(action)
                 score = reward
