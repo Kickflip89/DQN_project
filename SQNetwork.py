@@ -20,7 +20,7 @@ class SLearningNetwork:
 
         :param gamma: reward discount
         :param batch_size: replay buffer batch sizes
-        :param env: gym environment
+        :param env: gym environment name
         :param num_frames: number of frames per state (and number per action)
         :param lam_r: instantaneous reward scaling [1,100] typically
         :param lam_p: instantaneous punishment scaling [1,100]
@@ -119,7 +119,7 @@ class SLearningNetwork:
 
     def get_epsilon_for_iteration(self, iteration):
         #TODO provide scaling as parameter
-        return max(.05, 1-(iteration*.95/500000))
+        return max(.01, 1-(iteration*.99/300000))
 
     def choose_best_action(self, frames):
         pun = self.punish_pol
@@ -147,25 +147,33 @@ class SLearningNetwork:
         is_done = False
         new_frames = []
         total_score = 0
-
         # Play one game iteration (num_frames):
         for i in range(self.num_frames):
+            tot_reward = 0
+            punishment = 0
             if not is_done:
                 new_frame, reward, is_done, lives = self.env.step(action)
                 score = reward
-                punishment = -1
+                #anxiety of staying alive
+                punishment -= 1
+                #excitment of staying alive
+                tot_reward += 1
                 if reward < 0:
-                    reward = 0
                     punishment += reward
+                else:
+                    tot_reward += reward
                 lives = lives['ale.lives']
                 new_frame = self.preprocess(new_frame)
                 #modify rewards if life lost
-                if lives < self.lives:
+                if lives != self.lives:
+                    if lives < self.lives:
+                        punishment -= 10
+                    else:
+                        tot_reward += 10
                     self.lives = lives
-                    punishment -= 10
                 total_score += score
             else:
-                reward = 0
+                tot_reward = 0
                 punishment = 0
             new_frames.append(new_frame)
         new_frames = torch.cat(new_frames)
@@ -175,7 +183,7 @@ class SLearningNetwork:
             non_term = 0
 
         mem = (frames.unsqueeze(0), action,
-               new_frames.unsqueeze(0), reward, punishment, non_term)
+               new_frames.unsqueeze(0), tot_reward, punishment, non_term)
         self.memory.push(mem)
 
         r_loss = None

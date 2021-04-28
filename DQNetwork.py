@@ -88,7 +88,7 @@ class LearningNetwork:
         return loss.item()
 
     def get_epsilon_for_iteration(self, iteration):
-        return max(.01, 1-(iteration*.9/300000))
+        return max(.01, 1-(iteration*.99/300000))
 
     def choose_best_action(self, frames):
         model = self.policy
