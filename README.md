@@ -11,7 +11,7 @@ from SQNetwork import SLearningSystem #SQN implementation
 
 To use the modified reward system in DQN or DDQN, uncomment the line:
 ```python
-#reward -= 10
+#total_reward -= 10
 ```
 in the q_iteration method of the LearningSystem class.
 
