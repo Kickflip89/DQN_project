@@ -113,12 +113,14 @@ class LearningNetwork:
         is_done = False
         new_frames = []
         total_reward = 0
+        total_score = 0
         # Play one game iteration (3 frames):
         for i in range(self.num_frames):
             if not is_done:
                 new_frame, reward, is_done, lives = self.env.step(action)
                 lives = lives['ale.lives']
                 new_frame = self.preprocess(new_frame)
+                total_score += reward
                 if lives < self.lives:
                     self.lives = lives
                     #total_reward -= 10

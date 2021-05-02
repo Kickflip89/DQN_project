@@ -1,18 +1,18 @@
 #import agent of choice
-from SQNetwork import SLearningNetwork
+#from SQNetwork import SLearningNetwork
+from DSQNetwork import DSLearningNetwork
 #from DDQNetwork import DLearningNetwork
 #from DQNetwork import LearningNetwork
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-
 if __name__ == '__main__':
   #example prolong_life agent
-  network = SLearningNetwork(lam_p=10, a_r=.7)
-  network.train(50000)
+  network = DSLearningNetwork(lam_p=10, a_r=.7)
+  network.train(10000)
 
-  data_path = './data/prolong_life.csv'
+  data_path = './data/dbl_prolong.csv'
 
   scores = network.score_history
   its = network.its_hist

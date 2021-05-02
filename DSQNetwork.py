@@ -7,14 +7,14 @@ import torch
 from dqn import DQN, ReplayBuffer
 import random
 
-REWARD_PATH = './models/checkpoint_sqn_reward.pt'
-PUNISH_PATH = './models/checkpoint_sqn_punish.pt'
+REWARD_PATH = './models/checkpoint_dsqn_reward.pt'
+PUNISH_PATH = './models/checkpoint_dsqn_punish.pt'
 
 def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.xavier_uniform_(m.weight)
 
-class SLearningNetwork:
+class DSLearningNetwork:
     """
         Novel implementation of Lin et. al's split Q-learning for Deep RL
 
@@ -32,7 +32,7 @@ class SLearningNetwork:
                 lam_r=1, lam_p=1, a_r=1, a_p=1):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
-        self.memory = ReplayBuffer(30000)
+        self.memory = ReplayBuffer(50000)
         self.gamma = gamma
         self.batch_size = batch_size
         self.lam_r = lam_r
@@ -86,8 +86,11 @@ class SLearningNetwork:
         curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
         #process rewards
+        next_Qr_vals = rew_p(next_states, next_mask)
+        next_acts = next_Qr_vals.max(1)[1].to(dev)
+        next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         next_Qr_vals = rew_t(next_states, next_mask)
-        next_Qr_vals = next_Qr_vals.max(1)[0] * non_terms
+        next_Qr_vals = next_Qr_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
 
         expected_Qr_vals = rew_p(states, curr_mask)
@@ -101,8 +104,11 @@ class SLearningNetwork:
         self.opt_r.step()
 
         #process punishments
+        next_Qp_vals = pun_p(next_states, next_mask)
+        next_acts = next_Qp_vals.max(1)[1].to(dev)
+        next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         next_Qp_vals = pun_t(next_states, next_mask)
-        next_Qp_vals = next_Qp_vals.max(1)[0] * non_terms
+        next_Qp_vals = next_Qp_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
         next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
 
         expected_Qp_vals = pun_p(states, curr_mask)
@@ -119,7 +125,7 @@ class SLearningNetwork:
 
     def get_epsilon_for_iteration(self, iteration):
         #TODO provide scaling as parameter
-        return max(.01, 1-(iteration*.99/500000))
+        return max(.1, 1-(iteration*.9/500000))
 
     def choose_best_action(self, frames):
         pun = self.punish_pol
@@ -167,9 +173,9 @@ class SLearningNetwork:
                 #modify rewards if life lost
                 if lives != self.lives:
                     if lives < self.lives:
-                        punishment -= 10
+                        punishment -= 100
                     else:
-                        tot_reward += 10
+                        tot_reward += 100
                     self.lives = lives
                 total_score += score
             else:
@@ -213,7 +219,8 @@ class SLearningNetwork:
             e_its = 0
             frames = self.get_start_state()
             while not is_done:
-                is_done, reward, frames, r_loss, p_loss = self.q_iteration(frames, iteration)
+                is_done, reward, frames, r_loss, p_loss = self.q_iteration(frames,
+                    iteration)
                 iteration += 1
                 e_reward += reward
                 e_its += 1
