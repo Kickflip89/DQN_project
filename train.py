@@ -9,10 +9,10 @@ import numpy as np
 
 if __name__ == '__main__':
   #example prolong_life agent
-  network = DSLearningNetwork(lam_p=10, a_r=.7)
+  network = DSLearningNetwork(lam_r=.5, a_r=.5)
   network.train(10000)
 
-  data_path = './data/dbl_prolong.csv'
+  data_path = './data/dsqn_cp.csv'
 
   scores = network.score_history
   its = network.its_hist
