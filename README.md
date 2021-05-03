@@ -4,16 +4,25 @@ Deep Reinforcement Learning Project
 ## Model Initialization
 Use one of the following to intialize a network (no args right now, have to modify code)
 ```python
-from DQNetwork import LearningSystem #DQN implementation
-from DDQNetwork import DLearningSystem #DDQN implementation
-from SQNetwork import SLearningSystem #SQN implementation
+from networks.DQNetwork import LearningNetwork #DQN implementation
+from networks.DDQNetwork import DLearningNetwork #DDQN implementation
+from networks.SQNetwork import SLearningNetwork #SQN implementation
+from networks.DSQNetwork import DSLearningNetwork #DSQN implementation
 ```
 
 To use the modified reward system in DQN or DDQN, uncomment the line:
 ```python
 #total_reward -= 10
 ```
-in the q_iteration method of the LearningSystem class.
+in the q_iteration method of the LearningNetwork class.
+
+## Training:
+To train a model, modify train.py or write your own script.
+
+## Playing:
+Most networks have a .load() method to load a trained model and a .play()
+method which uses matplotlib vice opengl to render frames.  play.py contains
+a sample driver for a DSLearningNetwork
 
 ## Data bug for iterations
 in ./data, the lists representing the average number of iterations for dqn and ddqn were not reset during training due to a bug.  Thankfully, since they were

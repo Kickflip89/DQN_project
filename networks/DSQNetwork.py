@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch import nn
 import torch
-from dqn import DQN, ReplayBuffer
+from networks.dqn import DQN, ReplayBuffer
 import random
 
 REWARD_PATH = './models/checkpoint_dsqn_reward.pt'
@@ -173,9 +173,9 @@ class DSLearningNetwork:
                 #modify rewards if life lost
                 if lives != self.lives:
                     if lives < self.lives:
-                        punishment -= 100
+                        punishment -= 10
                     else:
-                        tot_reward += 100
+                        tot_reward += 10
                     self.lives = lives
                 total_score += score
             else:
@@ -256,6 +256,16 @@ class DSLearningNetwork:
     def load_punish_t(self, path):
         self.punish_tar.load_state_dict(torch.load(path))
         self.punish_tar.eval()
+
+    def load(self, r_path=REWARD_PATH, p_path=PUNISH_PATH):
+        self.reward_tar.load_state_dict(torch.load(r_path))
+        self.reward_pol.load_state_dict(torch.load(r_path))
+        self.punish_tar.load_state_dict(torch.load(p_path))
+        self.punish_pol.load_state_dict(torch.load(p_path))
+        self.reward_tar.eval()
+        self.reward_pol.train()
+        self.punish_tar.eval()
+        self.punish_pol.eval()
 
     def play(self):
         #TODO, update this method
