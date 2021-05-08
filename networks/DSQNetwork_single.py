@@ -73,8 +73,8 @@ class DSLearningNetwork:
     def fit_buffer(self, sample):
         rew_p = self.reward_pol.train()
         rew_t = self.reward_tar.eval()
-        reward_scale = 1 - self.a_r
-        punish_scale = 1 - self.a_p
+        a_r = self.a_r
+        a_p = self.a_p
         pun_p = self.punish_pol.train()
         pun_t = self.punish_tar.eval()
         dev = self.device
@@ -94,17 +94,14 @@ class DSLearningNetwork:
         next_acts = next_Qr_vals.max(1)[1].to(dev)
         next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         next_Qr_vals = rew_t(next_states, next_mask)
-        curr_Qr_vals = rew_t(states,curr_mask)
         next_Qr_vals = next_Qr_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
-        curr_Qr_vals = curr_Qr_vals.gather(-1, actions.unsqueeze(1)).squeeze(-1) * non_terms
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
-        target_Qr =  next_Qr_vals - (curr_Qr_vals * reward_scale)
 
         expected_Qr_vals = rew_p(states, curr_mask)
-        expected_Qr_vals = expected_Qr_vals.gather(-1, actions.unsqueeze(1)).squeeze(1)
+        expected_Qr_vals = expected_Qr_vals.gather(-1, actions.unsqueeze(1)) * a_r
 
         self.opt_r.zero_grad()
-        r_loss = self.loss(expected_Qr_vals, target_Qr)
+        r_loss = self.loss(expected_Qr_vals.squeeze(1), next_Qr_vals)
         r_loss.backward()
         for param in rew_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -119,10 +116,10 @@ class DSLearningNetwork:
         next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
 
         expected_Qp_vals = pun_p(states, curr_mask)
-        expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1)).squeeze(1)
+        expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1)) * a_p
 
         self.opt_p.zero_grad()
-        p_loss = self.loss(expected_Qp_vals, next_Qp_vals)
+        p_loss = self.loss(expected_Qp_vals.squeeze(1), next_Qp_vals)
         p_loss.backward()
         for param in pun_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -180,9 +177,9 @@ class DSLearningNetwork:
                 #modify rewards if life lost
                 if lives != self.lives:
                     if lives < self.lives:
-                        punishment -= 500
+                        punishment -= 100
                     else:
-                        tot_reward += 500
+                        tot_reward += 100
                     self.lives = lives
                 total_score += score
             else:
