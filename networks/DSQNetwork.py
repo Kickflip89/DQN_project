@@ -25,7 +25,7 @@ class DSLearningNetwork:
         :param w_r: instantaneous reward scaling [.1,100] typically
         :param w_p: instantaneous punishment scaling [.1,100]
         :param lambda_r: gradient scaling for rewards [.1,1] typically
-        :param lambda_l: gradient scaling for punishments [.1,1]
+        :param lambda_p: gradient scaling for punishments [.1,1]
     """
     def __init__(self, gamma=.95, batch_size=64,
                 env='MsPacmanDeterministic-v4', num_frames=4,
@@ -79,6 +79,7 @@ class DSLearningNetwork:
         pun_t = self.punish_tar.eval()
         dev = self.device
 
+        #Unpack batch
         states, actions, next_states, rewards, punishments, non_terms = list(zip(*sample))
         states = torch.cat(states).to(dev)
         actions = torch.tensor(actions).long().to(dev)
@@ -90,9 +91,11 @@ class DSLearningNetwork:
         curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
         #process rewards
+        #Get best actions for next state from policy network
         next_Qr_vals = rew_p(next_states, next_mask)
         next_acts = next_Qr_vals.max(1)[1].to(dev)
         next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
+        #Use target network to calculate Y
         next_Qr_vals = rew_t(next_states, next_mask)
         curr_Qr_vals = rew_t(states,curr_mask)
         next_Qr_vals = next_Qr_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
@@ -100,9 +103,11 @@ class DSLearningNetwork:
         next_Qr_vals = (next_Qr_vals * self.gamma) + (self.w_r * rewards)
         target_Qr =  next_Qr_vals - (curr_Qr_vals * reward_scale)
 
+        #Use policy network to calculate Q(s,a)
         expected_Qr_vals = rew_p(states, curr_mask)
         expected_Qr_vals = expected_Qr_vals.gather(-1, actions.unsqueeze(1)).squeeze(1)
 
+        #training step
         self.opt_r.zero_grad()
         r_loss = self.loss(expected_Qr_vals, target_Qr)
         r_loss.backward()
