@@ -9,8 +9,8 @@ import numpy as np
 
 if __name__ == '__main__':
   #example prolong_life agent
-  network = DSLearningNetwork(lam_r=.8, a_r=.9)
-  network.train(10000)
+  network = DSLearningNetwork(lam_r=.5, a_r=.5)
+  network.train(20000)
 
   data_path = './data/dsqn.csv'
 

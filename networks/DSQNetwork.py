@@ -115,14 +115,17 @@ class DSLearningNetwork:
         next_acts = next_Qp_vals.max(1)[1].to(dev)
         next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         next_Qp_vals = pun_t(next_states, next_mask)
+        curr_Qp_vals = pun_t(states,curr_mask)
         next_Qp_vals = next_Qp_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
+        curr_Qp_vals = curr_Qp_vals.gather(-1, actions.unsqueeze(1)).squeeze(-1) * non_terms
         next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
+        target_Qp = next_Qp_vals - (curr_Qp_vals * punish_scale)
 
         expected_Qp_vals = pun_p(states, curr_mask)
         expected_Qp_vals = expected_Qp_vals.gather(-1, actions.unsqueeze(1)).squeeze(1)
 
         self.opt_p.zero_grad()
-        p_loss = self.loss(expected_Qp_vals, next_Qp_vals)
+        p_loss = self.loss(expected_Qp_vals, target_Qp)
         p_loss.backward()
         for param in pun_p.parameters():
             param.grad.data.clamp_(-1, 1)
@@ -132,7 +135,7 @@ class DSLearningNetwork:
 
     def get_epsilon_for_iteration(self, iteration):
         #TODO provide scaling as parameter
-        return max(.1, 1-(iteration*.9/500000))
+        return max(.1, 1-(iteration*.9/1000000))
 
     def choose_best_action(self, frames):
         pun = self.punish_pol
