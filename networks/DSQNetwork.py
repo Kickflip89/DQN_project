@@ -22,23 +22,23 @@ class DSLearningNetwork:
         :param batch_size: replay buffer batch sizes
         :param env: gym environment name
         :param num_frames: number of frames per state (and number per action)
-        :param lam_r: instantaneous reward scaling [1,100] typically
-        :param lam_p: instantaneous punishment scaling [1,100]
-        :param a_r: gradient scaling for rewards [.1,1] typically
-        :param a_l: gradient scaling for punishments [.1,1]
+        :param w_r: instantaneous reward scaling [.1,100] typically
+        :param w_p: instantaneous punishment scaling [.1,100]
+        :param lambda_r: gradient scaling for rewards [.1,1] typically
+        :param lambda_l: gradient scaling for punishments [.1,1]
     """
     def __init__(self, gamma=.95, batch_size=64,
                 env='MsPacmanDeterministic-v4', num_frames=4,
-                lam_r=1, lam_p=1, a_r=1, a_p=1):
+                w_r=1, w_p=1, lambda_r=1, lambda_p=1):
         self.num_frames = num_frames
         self.device = torch.device('cuda') if torch.cuda.device_count() > 0 else torch.device('cpu')
         self.memory = ReplayBuffer(50000)
         self.gamma = gamma
         self.batch_size = batch_size
-        self.lam_r = lam_r
-        self.a_r = a_r
-        self.lam_p = lam_p
-        self.a_p = a_p
+        self.w_r = w_r
+        self.lambda_r = lambda_r
+        self.w_p = w_p
+        self.lambda_p = lambda_p
         self.env = gym.make(env)
         self.start = self.get_start_state()
         _, height, width = self.start.size()
@@ -73,8 +73,8 @@ class DSLearningNetwork:
     def fit_buffer(self, sample):
         rew_p = self.reward_pol.train()
         rew_t = self.reward_tar.eval()
-        reward_scale = 1 - self.a_r
-        punish_scale = 1 - self.a_p
+        reward_scale = 1 - self.lambda_r
+        punish_scale = 1 - self.lambda_p
         pun_p = self.punish_pol.train()
         pun_t = self.punish_tar.eval()
         dev = self.device
@@ -97,7 +97,7 @@ class DSLearningNetwork:
         curr_Qr_vals = rew_t(states,curr_mask)
         next_Qr_vals = next_Qr_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
         curr_Qr_vals = curr_Qr_vals.gather(-1, actions.unsqueeze(1)).squeeze(-1) * non_terms
-        next_Qr_vals = (next_Qr_vals * self.gamma) + (self.lam_r * rewards)
+        next_Qr_vals = (next_Qr_vals * self.gamma) + (self.w_r * rewards)
         target_Qr =  next_Qr_vals - (curr_Qr_vals * reward_scale)
 
         expected_Qr_vals = rew_p(states, curr_mask)
@@ -118,7 +118,7 @@ class DSLearningNetwork:
         curr_Qp_vals = pun_t(states,curr_mask)
         next_Qp_vals = next_Qp_vals.gather(-1, next_acts.unsqueeze(1)).squeeze(-1) * non_terms
         curr_Qp_vals = curr_Qp_vals.gather(-1, actions.unsqueeze(1)).squeeze(-1) * non_terms
-        next_Qp_vals = (next_Qp_vals * self.gamma) + (self.lam_p * punishments)
+        next_Qp_vals = (next_Qp_vals * self.gamma) + (self.w_p * punishments)
         target_Qp = next_Qp_vals - (curr_Qp_vals * punish_scale)
 
         expected_Qp_vals = pun_p(states, curr_mask)
