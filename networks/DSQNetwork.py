@@ -87,12 +87,12 @@ class DSLearningNetwork:
         rewards = torch.tensor(rewards).long().to(dev)
         punishments = torch.tensor(punishments).long().to(dev)
         non_terms = torch.tensor(non_terms).to(dev)
-        next_mask = torch.ones((actions.size(0), self.num_actions)).to(dev)
+        one_hot = torch.ones((actions.size(0), self.num_actions)).to(dev)
         curr_mask = F.one_hot(actions, self.num_actions).to(dev)
 
         #process rewards
         #Get best actions for next state from policy network
-        next_Qr_vals = rew_p(next_states, next_mask)
+        next_Qr_vals = rew_p(next_states, one_hot)
         next_acts = next_Qr_vals.max(1)[1].to(dev)
         next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         #Use target network to calculate Y
@@ -116,7 +116,7 @@ class DSLearningNetwork:
         self.opt_r.step()
 
         #process punishments
-        next_Qp_vals = pun_p(next_states, next_mask)
+        next_Qp_vals = pun_p(next_states, one_hot)
         next_acts = next_Qp_vals.max(1)[1].to(dev)
         next_mask = F.one_hot(next_acts, self.num_actions).to(dev)
         next_Qp_vals = pun_t(next_states, next_mask)
