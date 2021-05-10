@@ -8,11 +8,10 @@ import seaborn as sns
 import numpy as np
 
 if __name__ == '__main__':
-  #example prolong_life agent
-  network = DSLearningNetwork(lam_r=.5, a_r=.5)
+  network = DSLearningNetwork()
   network.train(20000)
 
-  data_path = './data/dsqn.csv'
+  data_path = './data/dsqn_vanilla.csv'
 
   scores = network.score_history
   its = network.its_hist

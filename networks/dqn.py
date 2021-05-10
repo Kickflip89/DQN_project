@@ -76,7 +76,7 @@ class DQN(nn.Module):
         X = F.relu(self.conv2(X))
         X = F.relu(self.conv3(X))
         X = self.flat(X)
-        X = self.fc(X)
+        X = F.relu(self.fc(X))
         X = self.out(X)
         if self.alpha!= 1:
             X = GradMultiply.apply(X, self.alpha)
